@@ -1,0 +1,93 @@
+########## GLOBAL ###################
+
+
+global
+        log 127.0.0.1 local0
+        log 127.0.0.1 local2 info 
+        chroot /var/lib/haproxy
+       
+        log 127.0.0.1 local0 notice
+        log 127.0.0.1 local1
+        
+        user haproxy
+        group haproxy
+        daemon
+        node eMudhra_Limited
+#        spread-checks 5     
+        
+# This section is fixed and just sets some default values.
+# These values can be overridden by more-specific redefinitions 
+# later in the config
+
+########## DEFAULTS ###################
+
+defaults
+        log     global
+        mode    http
+        option  dontlognull
+        option  allbackups
+        maxconn 10000
+        retries 3
+        option redispatch
+        retries                 3
+        timeout http-request    20
+        timeout queue           86400
+        timeout connect         86400
+        timeout client          86400
+        timeout server          86400
+        timeout http-keep-alive 30
+#        timeout check           20
+        errorfile 408 /dev/null
+
+# Enable admin/stats interface
+# go to http://lb1.example.com:8000/stats to access it
+
+listen admin_stats *:91
+       mode http
+       stats hide-version
+       stats uri /stats
+       stats refresh 5s
+       stats realm HAProxy\ Global\ stats
+       stats auth emudhra:emudhra@1             # CHANGE THIS TO A SECURE PASSWORD
+       stats auth sai:sai@123
+       stats show-node
+
+
+# A single frontend section is needed. This listens on 127.0.0.1:8080, and 
+# receives the requests from Apache.
+
+
+#############################################################################
+
+
+
+########## FRONTENDS ###################
+
+
+########## HTTP ###################
+  
+
+  ##### HTTPS #####
+
+frontend web-https
+  bind 10.80.100.195:80
+  mode http
+  default_backend eMudhra.com
+ 
+
+ ########## BACKENDS ###################
+
+
+
+backend eMudhra.com
+  mode http
+  option httplog
+  option httpclose
+  option forwardfor
+  balance roundrobin
+  cookie SRVID insert indirect nocache
+  option nolinger
+  option httpchk  GET /emCA HTTP/1.0
+  server eMudhra1 0.0.0.0:80 cookie eMudhra1 check inter 5s rise 2 fall 3
+  server eMudhra2 0.0.0.0:8080 cookie eMudhra2 check inter 5s rise 2 fall 3
+
